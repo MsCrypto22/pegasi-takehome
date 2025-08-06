@@ -1,0 +1,72 @@
+{
+  "guardrails": {
+    "content_filtering": {
+      "enabled": true,
+      "filters": [
+        {
+          "name": "harmful_content",
+          "type": "keyword",
+          "keywords": ["harmful", "dangerous", "illegal"],
+          "action": "block"
+        },
+        {
+          "name": "sensitive_data",
+          "type": "regex",
+          "pattern": "\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b",
+          "action": "redact"
+        }
+      ]
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60,
+      "burst_limit": 10
+    },
+    "input_validation": {
+      "enabled": true,
+      "max_input_length": 10000,
+      "allowed_characters": "a-zA-Z0-9\\s\\.,!?;:'\"()\\[\\]{}"
+    },
+    "output_validation": {
+      "enabled": true,
+      "max_output_length": 5000,
+      "content_safety_checks": true
+    },
+    "security_checks": {
+      "prompt_injection_detection": true,
+      "data_leakage_prevention": true,
+      "system_prompt_protection": true
+    },
+    "logging": {
+      "enabled": true,
+      "level": "INFO",
+      "include_sensitive_data": false,
+      "log_file": "logs/guardrails.log"
+    },
+    "alerting": {
+      "enabled": true,
+      "security_violations": true,
+      "rate_limit_exceeded": true,
+      "suspicious_activity": true
+    }
+  },
+  "models": {
+    "default": {
+      "temperature": 0.7,
+      "max_tokens": 1000,
+      "top_p": 0.9
+    },
+    "security_testing": {
+      "temperature": 0.1,
+      "max_tokens": 500,
+      "top_p": 0.8
+    }
+  },
+  "testing": {
+    "auto_retry_failed_tests": true,
+    "max_retry_attempts": 3,
+    "test_timeout_seconds": 30,
+    "parallel_test_execution": true,
+    "max_parallel_tests": 5
+  }
+} 
