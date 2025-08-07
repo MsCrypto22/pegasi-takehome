@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from enum import Enum
+import uuid
 
 from pydantic import BaseModel, Field, validator
 from langgraph.graph import StateGraph, END
@@ -170,6 +171,20 @@ class LearningMemory:
                     successful_attacks INTEGER DEFAULT 0,
                     learning_progress REAL DEFAULT 0.0,
                     metadata TEXT
+                )
+            ''')
+            
+            # Create memory snapshots table for enhanced persistence
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS memory_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    snapshot_id TEXT UNIQUE NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    agent_state TEXT NOT NULL,
+                    patterns_count INTEGER DEFAULT 0,
+                    strategies_count INTEGER DEFAULT 0,
+                    total_tests INTEGER DEFAULT 0,
+                    learning_progress REAL DEFAULT 0.0
                 )
             ''')
             
@@ -362,6 +377,82 @@ class LearningMemory:
                 strategies.append(strategy)
             
             return strategies
+    
+    def create_memory_snapshot(self, agent_state: AgentState) -> str:
+        """Create a memory snapshot of the current agent state."""
+        snapshot_id = f"snapshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO memory_snapshots
+                (snapshot_id, agent_state, patterns_count, strategies_count, 
+                 total_tests, learning_progress)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                snapshot_id,
+                agent_state.json(),
+                len(agent_state.learned_patterns),
+                len(agent_state.adaptation_strategies),
+                agent_state.total_tests_executed,
+                agent_state.learning_progress
+            ))
+            
+            conn.commit()
+            logger.info(f"Created memory snapshot: {snapshot_id}")
+        
+        return snapshot_id
+    
+    def load_memory_snapshot(self, snapshot_id: str) -> Optional[AgentState]:
+        """Load a memory snapshot."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT agent_state FROM memory_snapshots
+                WHERE snapshot_id = ?
+            ''', (snapshot_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return AgentState.parse_raw(row[0])
+        
+        return None
+    
+    def get_memory_statistics(self) -> Dict[str, Any]:
+        """Get statistics about the memory database."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Get counts from each table
+            cursor.execute('SELECT COUNT(*) FROM test_results')
+            test_results_count = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM learned_patterns')
+            patterns_count = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM adaptation_strategies')
+            strategies_count = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM memory_snapshots')
+            snapshots_count = cursor.fetchone()[0]
+            
+            # Get recent activity
+            cursor.execute('''
+                SELECT COUNT(*) FROM test_results 
+                WHERE timestamp >= datetime('now', '-7 days')
+            ''')
+            recent_tests = cursor.fetchone()[0]
+            
+            return {
+                "total_test_results": test_results_count,
+                "total_learned_patterns": patterns_count,
+                "total_adaptation_strategies": strategies_count,
+                "total_memory_snapshots": snapshots_count,
+                "recent_tests_7_days": recent_tests,
+                "database_path": self.db_path
+            }
 
 class LearningAgent:
     """
@@ -521,6 +612,9 @@ class LearningAgent:
             # Store adapted strategies
             for strategy in adapted_strategies:
                 self.memory.store_adaptation_strategy(strategy)
+            
+            # Create memory snapshot for enhanced persistence
+            self.memory.create_memory_snapshot(state)
             
             logger.info(f"Adapted {len(adapted_strategies)} strategies")
             
@@ -722,28 +816,22 @@ class LearningAgent:
         try:
             logger.info(f"Starting learning cycle {self.state.current_iteration + 1}")
             
-            # Add required checkpoint configuration
-            checkpoint_config = {
-                "configurable": {
-                    "thread_id": f"learning_agent_{self.state.current_iteration}",
-                    "checkpoint_ns": "learning_cycle",
-                    "checkpoint_id": f"cycle_{self.state.current_iteration}"
-                }
-            }
+            # Execute the workflow steps manually to avoid LangGraph issues
+            # Step 1: Execute
+            self.state = self._execute_node(self.state)
             
-            # Merge with user config if provided
-            if config:
-                checkpoint_config.update(config)
+            # Step 2: Analyze
+            self.state = self._analyze_node(self.state)
             
-            # Run the workflow
-            final_state = self.app.invoke(self.state, config=checkpoint_config)
+            # Step 3: Learn
+            self.state = self._learn_node(self.state)
             
-            # Update internal state
-            self.state = final_state
+            # Step 4: Adapt
+            self.state = self._adapt_node(self.state)
             
             logger.info(f"Completed learning cycle {self.state.current_iteration}")
             
-            return final_state
+            return self.state
             
         except Exception as e:
             logger.error(f"Error in learning cycle: {e}")
@@ -760,6 +848,10 @@ class LearningAgent:
             "last_adaptation": self.state.last_adaptation.isoformat() if self.state.last_adaptation else None,
             "memory_database": self.state.memory_database_connection
         }
+    
+    def get_memory_statistics(self) -> Dict[str, Any]:
+        """Get comprehensive memory statistics."""
+        return self.memory.get_memory_statistics()
     
     def learn_from_results(self, test_results: List[TestResult]) -> None:
         """
