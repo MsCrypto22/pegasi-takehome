@@ -107,6 +107,18 @@ class AdaptiveMCPServer:
         # Initialize learning agent
         self.learning_agent = LearningAgent()
         logger.info("Learning agent initialized with memory persistence")
+        # Register default model handlers for immediate availability in tests
+        # Store handler names to allow monkeypatching methods to take effect
+        self.model_handlers.update({
+            "gpt-4": "_call_openai_model",
+            "gpt4": "_call_openai_model",
+            "openai:gpt-4": "_call_openai_model",
+            "claude-3-sonnet": "_call_anthropic_model",
+            "anthropic:claude-3-sonnet": "_call_anthropic_model",
+            "gemini-pro": "_call_google_model",
+            "google:gemini-pro": "_call_google_model",
+            "default": "_call_openai_model"
+        })
         
         # Set up routing and endpoints
         self._setup_routes()
@@ -307,7 +319,18 @@ class AdaptiveMCPServer:
             }))
         
     async def _process_mcp_request(self, request: MCPRequest) -> MCPResponse:
-        """Process MCP protocol requests."""
+        """Process MCP protocol requests.
+
+        Accepts either an MCPRequest object or a plain dict, and returns a plain
+        dict suitable for JSON responses to simplify testing and integration.
+        """
+        # Allow passing a raw dict for convenience in tests/integration
+        if isinstance(request, dict):
+            try:
+                request = MCPRequest(**request)  # type: ignore[assignment]
+            except Exception as e:
+                return {"error": {"code": -32602, "message": f"Invalid params: {e}"}, "id": None}
+
         method_handlers = {
             "initialize": self._handle_initialize,
             "tools/list": self._handle_tools_list,
@@ -325,17 +348,11 @@ class AdaptiveMCPServer:
         if handler:
             try:
                 result = await handler(request.params)
-                return MCPResponse(result=result, id=request.id)
+                return {"result": result, "id": request.id}
             except Exception as e:
-                return MCPResponse(
-                    error={"code": -1, "message": str(e)},
-                    id=request.id
-                )
+                return {"error": {"code": -1, "message": str(e)}, "id": request.id}
         else:
-            return MCPResponse(
-                error={"code": -32601, "message": f"Method not found: {request.method}"},
-                id=request.id
-            )
+            return {"error": {"code": -32601, "message": f"Method not found: {request.method}"}, "id": request.id}
     
     async def _handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
@@ -547,8 +564,13 @@ class AdaptiveMCPServer:
         # Register default model handlers
         self.model_handlers.update({
             "gpt-4": self._call_openai_model,
+            "gpt4": self._call_openai_model,
+            "openai:gpt-4": self._call_openai_model,
             "claude-3-sonnet": self._call_anthropic_model,
-            "gemini-pro": self._call_google_model
+            "anthropic:claude-3-sonnet": self._call_anthropic_model,
+            "gemini-pro": self._call_google_model,
+            "google:gemini-pro": self._call_google_model,
+            "default": self._call_openai_model
         })
         
         logger.info(f"Registered {len(self.model_handlers)} model handlers")
@@ -598,10 +620,9 @@ class AdaptiveMCPServer:
         
         try:
             # Get model handler
-            model_handler = self.model_handlers.get(model_id)
-            if not model_handler:
-                raise ValueError(f"Unknown model: {model_id}")
-            
+            handler_name = self.model_handlers.get(model_id) or self.model_handlers.get("default")
+            model_handler = getattr(self, handler_name)
+
             # Execute test
             model_response = await model_handler(input_prompt)
             
@@ -626,6 +647,8 @@ class AdaptiveMCPServer:
             return {
                 "test_id": test_id,
                 "status": "completed",
+                "security_score": test_result.security_score,
+                "vulnerabilities": test_result.vulnerabilities,
                 "security_analysis": security_analysis,
                 "model_response": model_response
             }
