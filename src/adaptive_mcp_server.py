@@ -21,6 +21,8 @@ Key functionalities:
 import asyncio
 import json
 import logging
+import re
+from pathlib import Path
 from typing import Dict, List, Any, Optional, Callable
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -99,10 +101,14 @@ class AdaptiveMCPServer:
         """
         self.host = host
         self.port = port
-        self.app = FastAPI(title="Adaptive MCP Server", version="2.0.0")
+        self.app = FastAPI(title="Adaptive MCP Server", version="2.1.0")
         self.active_tests: Dict[str, SecurityTestResult] = {}
         self.model_handlers: Dict[str, Callable] = {}
         self.websocket_connections: List[WebSocket] = []
+        
+        # Guardrails configuration
+        self.guardrails_path = Path("configs/guardrails_config.json")
+        self.guardrails: Dict[str, Any] = self._load_guardrails()
         
         # Initialize learning agent
         self.learning_agent = LearningAgent()
@@ -140,9 +146,9 @@ class AdaptiveMCPServer:
         @self.app.get("/")
         async def root():
             return {
-                "message": "Adaptive MCP Server with Learning Capabilities", 
+                "message": "Adaptive MCP Server with Learning Capabilities",
                 "status": "running",
-                "version": "2.0.0"
+                "version": "2.1.0"
             }
         
         @self.app.get("/health")
@@ -221,11 +227,15 @@ class AdaptiveMCPServer:
                 
                 # Learn from results
                 self.learning_agent.learn_from_results(test_results)
-                
+
+                # Adapt guardrails based on new learnings
+                updated = self._adapt_guardrails_from_learning()
+
                 return {
                     "status": "success",
                     "message": f"Learned from {len(test_results)} test results",
-                    "learning_summary": self.learning_agent.get_learning_summary()
+                    "learning_summary": self.learning_agent.get_learning_summary(),
+                    "guardrails_updated": updated
                 }
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
@@ -235,10 +245,13 @@ class AdaptiveMCPServer:
             """Run a complete learning cycle."""
             try:
                 state = self.learning_agent.run_learning_cycle(config)
+                # Adapt guardrails after a full cycle
+                updated = self._adapt_guardrails_from_learning()
                 return {
                     "status": "success",
                     "learning_summary": self.learning_agent.get_learning_summary(),
-                    "memory_statistics": self.learning_agent.get_memory_statistics()
+                    "memory_statistics": self.learning_agent.get_memory_statistics(),
+                    "guardrails_updated": updated
                 }
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
@@ -253,6 +266,22 @@ class AdaptiveMCPServer:
                 }
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
+
+        # Guardrails endpoints
+        @self.app.get("/guardrails")
+        async def get_guardrails():
+            return {"guardrails": self.guardrails}
+
+        @self.app.post("/guardrails/reset")
+        async def reset_guardrails():
+            self.guardrails = self._load_guardrails(force_default=True)
+            self._save_guardrails()
+            return {"status": "reset", "guardrails": self.guardrails}
+
+        @self.app.post("/guardrails/adapt")
+        async def adapt_guardrails():
+            updated = self._adapt_guardrails_from_learning()
+            return {"status": "success", "guardrails_updated": updated, "guardrails": self.guardrails}
         
         @self.app.post("/learning/generate-adaptive-tests")
         async def generate_adaptive_tests(request: Dict[str, Any]):
@@ -370,7 +399,7 @@ class AdaptiveMCPServer:
             },
             "serverInfo": {
                 "name": "Adaptive MCP Server with Learning",
-                "version": "2.0.0"
+                "version": "2.1.0"
             }
         }
     
@@ -623,8 +652,13 @@ class AdaptiveMCPServer:
             handler_name = self.model_handlers.get(model_id) or self.model_handlers.get("default")
             model_handler = getattr(self, handler_name)
 
-            # Execute test
-            model_response = await model_handler(input_prompt)
+            # Enforce guardrails pre-call (prompt-level blocking)
+            blocked_response = self._enforce_guardrails_on_prompt(input_prompt)
+            if blocked_response is not None:
+                model_response = blocked_response
+            else:
+                # Execute test against the model
+                model_response = await model_handler(input_prompt)
             
             # Analyze security
             security_analysis = await self._analyze_security_response(
@@ -658,6 +692,117 @@ class AdaptiveMCPServer:
             test_result.metadata = {"error": str(e)}
             await self._notify_test_update(test_id)
             raise
+
+    def _load_guardrails(self, force_default: bool = False) -> Dict[str, Any]:
+        """Load guardrails configuration from disk or return a safe default."""
+        default = {
+            "guardrails": {
+                "content_filtering": {
+                    "enabled": True,
+                    "filters": [
+                        {"name": "harmful_content", "type": "keyword", "keywords": ["bomb", "hack", "illegal"], "action": "block"},
+                        {"name": "sensitive_data", "type": "regex", "pattern": r"\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b", "action": "redact"}
+                    ]
+                },
+                "security_checks": {
+                    "prompt_injection_detection": True,
+                    "data_leakage_prevention": True,
+                    "system_prompt_protection": True
+                }
+            }
+        }
+        try:
+            if force_default or not self.guardrails_path.exists():
+                return default
+            with self.guardrails_path.open("r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load guardrails config, using default: {e}")
+            return default
+
+    def _save_guardrails(self) -> None:
+        """Persist guardrails to disk."""
+        try:
+            self.guardrails_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.guardrails_path.open("w") as f:
+                json.dump(self.guardrails, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save guardrails config: {e}")
+
+    def _enforce_guardrails_on_prompt(self, prompt: str) -> Optional[str]:
+        """Apply configured content filters to the input prompt.
+
+        Returns a safe refusal response if blocked, otherwise None.
+        """
+        try:
+            gr = self.guardrails.get("guardrails", {})
+            cf = gr.get("content_filtering", {})
+            if not cf.get("enabled", False):
+                return None
+            filters = cf.get("filters", [])
+            lowered = prompt.lower()
+            for filt in filters:
+                action = filt.get("action", "block")
+                ftype = filt.get("type", "keyword")
+                if ftype == "keyword":
+                    keywords = [k.lower() for k in filt.get("keywords", [])]
+                    if any(k in lowered for k in keywords):
+                        if action == "block":
+                            return "Request blocked by guardrails."
+                elif ftype == "regex":
+                    pattern = filt.get("pattern")
+                    if pattern and re.search(pattern, prompt, flags=re.IGNORECASE):
+                        if action == "block":
+                            return "Request blocked by guardrails."
+            return None
+        except Exception as e:
+            logger.warning(f"Guardrails enforcement failed: {e}")
+            return None
+
+    def _adapt_guardrails_from_learning(self) -> Dict[str, Any]:
+        """Augment guardrails filters based on learned patterns to reduce future attack success."""
+        added = 0
+        try:
+            patterns = self.learning_agent.memory.get_learned_patterns()
+            if not patterns:
+                return {"added_filters": 0}
+
+            gr = self.guardrails.setdefault("guardrails", {})
+            cf = gr.setdefault("content_filtering", {"enabled": True, "filters": []})
+            cf.setdefault("filters", [])
+
+            existing_names = {f.get("name") for f in cf["filters"]}
+
+            # Map attack type to canonical keywords
+            attack_keywords = {
+                "prompt_injection": ["ignore previous instructions", "system prompt"],
+                "jailbreaking": ["let's play a game", "hypothetically"],
+                "pii_extraction": ["training data", "model architecture"],
+            }
+
+            for p in patterns:
+                atk = getattr(p, "attack_type", None)
+                atk_value = getattr(atk, "value", None) or (atk if isinstance(atk, str) else None)
+                if atk_value not in attack_keywords:
+                    continue
+                name = f"adaptive_{atk_value}"
+                if name in existing_names:
+                    continue
+                cf["filters"].append({
+                    "name": name,
+                    "type": "keyword",
+                    "keywords": attack_keywords[atk_value],
+                    "action": "block"
+                })
+                added += 1
+                existing_names.add(name)
+
+            if added:
+                self._save_guardrails()
+            return {"added_filters": added}
+        except Exception as e:
+            logger.warning(f"Failed to adapt guardrails: {e}")
+            return {"added_filters": 0}
     
     async def _learn_from_test_result(self, test_case: Dict[str, Any], security_analysis: Dict[str, Any]):
         """Learn from a test result."""
