@@ -31,9 +31,13 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 
 # Import the modules to be tested
-from src.promptfoo_wrapper import PromptfooWrapper, AttackType
-from src.learning_agent import LearningAgent, AgentState, TestResult
-from src.adaptive_mcp_server import AdaptiveMCPServer
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent / "src"))
+
+from promptfoo_wrapper import PromptfooWrapper, AttackType
+from learning_agent import LearningAgent, AgentState, TestResult
+from adaptive_mcp_server import AdaptiveMCPServer
 
 class TestIntegration:
     """

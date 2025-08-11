@@ -9,7 +9,7 @@ A Python wrapper that automates security testing for AI models, detecting vulner
 
 **The Problem:** AI models are vulnerable to attacks that can make them reveal sensitive information or behave dangerously.
 
-**Our Solution:** Automated security testing that runs 9 different attack scenarios in minutes, providing a clear security score and risk assessment.
+**My Solution:** Automated security testing that runs 9 different attack scenarios in minutes, providing a clear security score and risk assessment.
 
 **The Value:** 
 - **Speed**: Automated vs manual testing (minutes vs hours)

@@ -10,7 +10,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from adaptive_mcp_server import AdaptiveMCPServer
+from src.adaptive_mcp_server import AdaptiveMCPServer
 
 async def main():
     server = AdaptiveMCPServer(host="localhost", port=8000)
