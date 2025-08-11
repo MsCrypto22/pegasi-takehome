@@ -617,9 +617,9 @@ class EnterpriseSecuritySimulation:
                 "compliance_maintained": self.business_metrics["compliance_violations"] == 0
             },
             "learning_agent_performance": {
-                "patterns_learned": len(self.learning_agent.get_learned_patterns()),
-                "strategies_generated": len(self.learning_agent.get_adaptation_strategies()),
-                "memory_utilization": len(self.learning_agent.get_recent_test_results(days=365))
+                "patterns_learned": len(self.learning_agent.memory.get_learned_patterns()),
+                "strategies_generated": len(self.learning_agent.memory.get_adaptation_strategies()),
+                "memory_utilization": len(self.learning_agent.memory.get_recent_test_results(days=365))
             },
             "scenario_details": [
                 {

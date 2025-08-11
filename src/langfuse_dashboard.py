@@ -126,7 +126,7 @@ class SecurityDashboard:
     def get_current_metrics(self) -> DashboardMetrics:
         """Get current dashboard metrics"""
         # Get test results
-        test_results = self.learning_agent.get_recent_test_results(days=30)
+        test_results = self.learning_agent.memory.get_recent_test_results(days=30)
         
         if not test_results:
             return DashboardMetrics(
@@ -136,8 +136,8 @@ class SecurityDashboard:
                 success_rate=0.0,
                 average_detection_time=0.0,
                 total_financial_risk=0.0,
-                patterns_learned=len(self.learning_agent.get_learned_patterns()),
-                strategies_generated=len(self.learning_agent.get_adaptation_strategies()),
+                patterns_learned=len(self.learning_agent.memory.get_learned_patterns()),
+                strategies_generated=len(self.learning_agent.memory.get_adaptation_strategies()),
                 guardrails_active=10,  # Default guardrails
                 last_attack_time=datetime.now(),
                 learning_progress=0.0
@@ -157,8 +157,8 @@ class SecurityDashboard:
         total_financial_risk = sum(r.score * 50000 for r in test_results if r.success)  # $50K per successful attack
         
         # Learning progress
-        patterns = len(self.learning_agent.get_learned_patterns())
-        strategies = len(self.learning_agent.get_adaptation_strategies())
+        patterns = len(self.learning_agent.memory.get_learned_patterns())
+        strategies = len(self.learning_agent.memory.get_adaptation_strategies())
         learning_progress = min(100.0, (patterns + strategies) / 10.0)  # Progress based on learned items
         
         return DashboardMetrics(
@@ -274,7 +274,7 @@ class SecurityDashboard:
             st.subheader("Attack Types Distribution")
             
             # Get attack type distribution
-            test_results = self.learning_agent.get_recent_test_results(days=7)
+            test_results = self.learning_agent.memory.get_recent_test_results(days=7)
             if test_results:
                 attack_counts = {}
                 for result in test_results:
@@ -350,7 +350,7 @@ class SecurityDashboard:
         with col2:
             st.subheader("Recent Test Results")
             
-            recent_results = self.learning_agent.get_recent_test_results(days=1)
+            recent_results = self.learning_agent.memory.get_recent_test_results(days=1)
             if recent_results:
                 for result in recent_results[-5:]:  # Show last 5
                     status = "✅ BLOCKED" if not result.success else "❌ SUCCESS"
