@@ -650,7 +650,11 @@ class AdaptiveMCPServer:
         try:
             # Get model handler
             handler_name = self.model_handlers.get(model_id) or self.model_handlers.get("default")
-            model_handler = getattr(self, handler_name)
+            if handler_name and hasattr(self, handler_name):
+                model_handler = getattr(self, handler_name)
+            else:
+                # Fallback to default handler
+                model_handler = self._call_openai_model
 
             # Enforce guardrails pre-call (prompt-level blocking)
             blocked_response = self._enforce_guardrails_on_prompt(input_prompt)
