@@ -619,7 +619,7 @@ class EnterpriseSecuritySimulation:
             "learning_agent_performance": {
                 "patterns_learned": len(self.learning_agent.get_learned_patterns()),
                 "strategies_generated": len(self.learning_agent.get_adaptation_strategies()),
-                "memory_utilization": len(self.learning_agent.get_test_results())
+                "memory_utilization": len(self.learning_agent.get_recent_test_results(days=365))
             },
             "scenario_details": [
                 {
