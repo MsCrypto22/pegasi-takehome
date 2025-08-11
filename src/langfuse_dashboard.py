@@ -204,7 +204,8 @@ class SecurityDashboard:
         # Run simulation
         if st.sidebar.button("🚀 Run Attack Simulation"):
             with st.spinner("Running security simulation..."):
-                self.simulation.run_simulation()
+                import asyncio
+                asyncio.run(self.simulation.run_comprehensive_simulation())
             st.success("Simulation completed!")
             st.rerun()
         
