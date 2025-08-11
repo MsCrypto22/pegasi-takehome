@@ -328,14 +328,15 @@ class SecurityDashboard:
                 if test_prompt:
                     with st.spinner("Testing security..."):
                         # Create test result
+                        start_time = time.time()
                         test_result = TestResult(
-                            test_name=f"manual_test_{int(time.time())}",
+                            test_name=f"manual_test_{int(start_time)}",
                             prompt=test_prompt,
                             response="Manual test response",
                             attack_type=AttackType(attack_type),
                             success=False,
                             score=0.5,
-                            execution_time=datetime.now(),
+                            execution_time=0.1,  # Fixed: use float instead of datetime
                             metadata={"source": "manual_test"}
                         )
                         
