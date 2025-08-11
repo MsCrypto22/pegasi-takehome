@@ -41,7 +41,6 @@ try:
     LANGFUSE_AVAILABLE = True
 except ImportError:
     LANGFUSE_AVAILABLE = False
-    print("⚠️  LangFuse not available. Install with: pip install langfuse")
 
 
 @dataclass
@@ -74,8 +73,10 @@ class SecurityDashboard:
                 secret_key=LANGFUSE_SECRET_KEY,
                 host=LANGFUSE_HOST
             )
+            print("✅ LangFuse integration enabled")
         else:
             self.langfuse = None
+            print("⚠️  LangFuse not available. Install with: pip install langfuse")
             
         # Dashboard state
         self.metrics_history = []
@@ -191,9 +192,9 @@ class SecurityDashboard:
         st.sidebar.header("Dashboard Controls")
         
         # Auto-refresh
-        auto_refresh = st.sidebar.checkbox("Auto-refresh (5s)", value=True)
+        auto_refresh = st.sidebar.checkbox("Auto-refresh (30s)", value=False)
         if auto_refresh:
-            time.sleep(5)
+            time.sleep(30)
             st.rerun()
         
         # Manual refresh
