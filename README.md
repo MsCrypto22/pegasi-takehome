@@ -62,6 +62,7 @@ pegasi-takehome/
 ### Prerequisites
 - **Python 3.13** (recommended) or Python 3.9+
 - **macOS or Ubuntu** (tested on both)
+- **Node.js 20+** (for PromptFoo CLI)
 - All dependencies listed in `requirements.txt`
 
 ### Installation
@@ -78,8 +79,12 @@ cd pegasi-takehome
 # Install dependencies
 pip install -r requirements.txt
 
+# Install PromptFoo CLI
+npm install -g promptfoo
+
 # Verify installation
 python3.13 -c "import streamlit, fastapi, langfuse; print('✅ Dependencies installed successfully')"
+promptfoo --version
 ```
 
 #### Ubuntu Setup
@@ -97,8 +102,12 @@ cd pegasi-takehome
 # Install dependencies
 pip3.13 install -r requirements.txt
 
+# Install PromptFoo CLI
+npm install -g promptfoo
+
 # Verify installation
 python3.13 -c "import streamlit, fastapi, langfuse; print('✅ Dependencies installed successfully')"
+promptfoo --version
 ```
 
 ### Configuration
