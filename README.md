@@ -59,20 +59,60 @@ pegasi-takehome/
 
 ## Getting Started
 
-1. Install dependencies:
+### Prerequisites
+- **Python 3.13** (recommended) or Python 3.9+
+- All dependencies listed in `requirements.txt`
+
+### Installation
+
+1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Configure your environment:
+2. **Verify installation:**
+   ```bash
+   python3.13 -c "import streamlit, fastapi, langfuse; print('✅ Dependencies installed successfully')"
+   ```
+
+3. **Configure your environment:**
    - Set up API keys in environment variables
    - Configure promptfoo settings in `configs/promptfooconfig.yaml`
    - Adjust guardrails in `configs/guardrails_config.json`
 
-3. Run tests:
-   ```bash
-   pytest tests/
-   ```
+### Execution
+
+**Recommended (Python 3.13):**
+```bash
+# Run the learning agent test
+python3.13 test_learning_agent.py
+
+# Run the attack demo
+python3.13 attack_demo.py
+
+# Start the MCP server
+python3.13 start_server.py
+
+# Run the dashboard
+python3.13 run_dashboard.py
+
+# Run integration tests
+python3.13 -m pytest tests/
+```
+
+**Fallback (Python 3.9):**
+```bash
+# If python3.13 is not available
+python test_learning_agent.py
+python attack_demo.py
+```
+
+### Troubleshooting
+
+If you encounter import errors:
+1. Ensure you're using Python 3.13: `python --version`
+2. Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
+3. Check the health check summary: `HEALTH_CHECK_SUMMARY.md`
 
 ## Security Testing Features
 

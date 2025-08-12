@@ -34,7 +34,7 @@ import uuid
 from datetime import datetime
 
 # Import learning agent for integration
-from .learning_agent import LearningAgent, TestResult, AttackType
+from learning_agent import LearningAgent, TestResult, AttackType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
