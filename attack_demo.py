@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent / "src"))
 from learning_agent import LearningAgent, TestResult, AttackType
 
 def main():
-    print("🚀 AI Security Attack Demo - Learning & Adaptation")
+    print(" AI Security Attack Demo - Learning & Adaptation")
     print("=" * 60)
     
     # Initialize learning agent
@@ -151,14 +151,14 @@ def main():
     final_patterns = agent.memory.get_learned_patterns()
     final_strategies = agent.memory.get_adaptation_strategies()
     
-    print(f"   📈 Total Tests Executed: {final_summary['total_tests_executed']}")
-    print(f"   🧠 Total Learned Patterns: {len(final_patterns)}")
-    print(f"   ⚙️  Total Adaptation Strategies: {len(final_strategies)}")
-    print(f"   📊 Learning Progress: {final_summary['learning_progress']:.1%}")
+    print(f"    Total Tests Executed: {final_summary['total_tests_executed']}")
+    print(f"    Total Learned Patterns: {len(final_patterns)}")
+    print(f"    Total Adaptation Strategies: {len(final_strategies)}")
+    print(f"    Learning Progress: {final_summary['learning_progress']:.1%}")
     
     # Memory statistics
     memory_stats = agent.get_memory_statistics()
-    print(f"\n💾 Memory Statistics:")
+    print(f"\n Memory Statistics:")
     print(f"   - Test Results Stored: {memory_stats['total_test_results']}")
     print(f"   - Learned Patterns: {memory_stats['total_learned_patterns']}")
     print(f"   - Adaptation Strategies: {memory_stats['total_adaptation_strategies']}")

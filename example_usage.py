@@ -96,7 +96,7 @@ def example_basic_usage():
             }
         }
         
-        print("✅ Security tests completed successfully!")
+        print("  Security tests completed successfully!")
         print(f"   Total tests: {expected_results['metrics']['total_tests']}")
         print(f"   Success rate: {expected_results['metrics']['success_rate']:.1f}%")
         print(f"   Security score: {expected_results['security_analysis']['overall_security_score']:.1f}")
@@ -106,17 +106,17 @@ def example_basic_usage():
         
     except RuntimeError as e:
         if "Promptfoo CLI not available" in str(e):
-            print("⚠️  Promptfoo CLI not installed (expected for demo)")
+            print("  Promptfoo CLI not installed (expected for demo)")
             print("   This is normal - the wrapper is working correctly")
             return None
         else:
-            print(f"❌ Runtime error: {e}")
+            print(f" Runtime error: {e}")
             return None
     except PromptfooError as e:
-        print(f"❌ PromptFoo error: {e}")
+        print(f" PromptFoo error: {e}")
         return None
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f" Unexpected error: {e}")
         return None
 
 def example_attack_type_analysis():
