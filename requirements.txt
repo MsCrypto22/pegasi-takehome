@@ -25,4 +25,7 @@ pyyaml>=6.0.0
 # HTTP client for MCP server
 httpx>=0.24.0
 
-# Note: sqlite3 is built-in to Python, no external dependency needed 
+# Note: sqlite3 is built-in to Python, no external dependency needed
+
+# External CLI dependencies (install separately):
+# - promptfoo CLI: npm install -g promptfoo 

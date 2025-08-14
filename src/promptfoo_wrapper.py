@@ -62,8 +62,6 @@ class PromptfooConfig(BaseModel):
     """Model for promptfoo configuration."""
     config_path: str
     output_format: str = "json"
-    max_retries: int = 3
-    timeout: int = 30
     parallel_tests: int = 5
 
 class PromptfooWrapper:
@@ -144,9 +142,8 @@ class PromptfooWrapper:
         cmd = [
             "promptfoo", "eval",
             "--config", config_file,
-            "--output", self.config.output_format,
-            "--max-retries", str(self.config.max_retries),
-            "--timeout", str(self.config.timeout)
+            "--output", f"results.{self.config.output_format}",
+            "--max-concurrency", str(self.config.parallel_tests)
         ]
         
         logger.info(f"Executing promptfoo evaluation: {' '.join(cmd)}")
@@ -158,7 +155,7 @@ class PromptfooWrapper:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=self.config.timeout * 2  # Double timeout for safety
+                timeout=60  # 60 second timeout for safety
             )
             
             execution_time = (datetime.now() - start_time).total_seconds()
@@ -170,12 +167,23 @@ class PromptfooWrapper:
                 raise PromptfooError(error_msg)
             
             # Parse the output based on format
-            if self.config.output_format == "json":
-                raw_results = json.loads(result.stdout)
-            elif self.config.output_format == "yaml":
-                raw_results = yaml.safe_load(result.stdout)
+            output_file = f"results.{self.config.output_format}"
+            if Path(output_file).exists():
+                with open(output_file, 'r') as f:
+                    if self.config.output_format == "json":
+                        raw_results = json.load(f)
+                    elif self.config.output_format == "yaml":
+                        raw_results = yaml.safe_load(f)
+                    else:
+                        raise ValueError(f"Unsupported output format: {self.config.output_format}")
             else:
-                raise ValueError(f"Unsupported output format: {self.config.output_format}")
+                # Fallback to parsing stdout if file doesn't exist
+                if self.config.output_format == "json":
+                    raw_results = json.loads(result.stdout)
+                elif self.config.output_format == "yaml":
+                    raw_results = yaml.safe_load(result.stdout)
+                else:
+                    raise ValueError(f"Unsupported output format: {self.config.output_format}")
             
             logger.info(f"Evaluation completed successfully in {execution_time:.2f}s")
             
@@ -187,7 +195,7 @@ class PromptfooWrapper:
             }
             
         except subprocess.TimeoutExpired:
-            raise PromptfooError(f"Evaluation timed out after {self.config.timeout * 2}s")
+            raise PromptfooError(f"Evaluation timed out after 60s")
         except json.JSONDecodeError as e:
             raise PromptfooError(f"Failed to parse JSON output: {e}")
         except yaml.YAMLError as e:

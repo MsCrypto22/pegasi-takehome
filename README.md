@@ -81,6 +81,8 @@ pip install -r requirements.txt
 
 # Install PromptFoo CLI
 npm install -g promptfoo
+# Or use the installation script:
+# ./install_promptfoo.sh
 
 # Verify installation
 python3.13 -c "import streamlit, fastapi, langfuse; print('✅ Dependencies installed successfully')"
@@ -104,6 +106,8 @@ pip3.13 install -r requirements.txt
 
 # Install PromptFoo CLI
 npm install -g promptfoo
+# Or use the installation script:
+# ./install_promptfoo.sh
 
 # Verify installation
 python3.13 -c "import streamlit, fastapi, langfuse; print('✅ Dependencies installed successfully')"
@@ -133,6 +137,9 @@ python3.13 run_dashboard.py
 
 # Run integration tests
 python3.13 -m pytest tests/
+
+# Test promptfoo CLI installation (no API keys required)
+python3.13 test_basic_promptfoo.py
 ```
 
 **Fallback (Python 3.9):**
